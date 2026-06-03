@@ -13,10 +13,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	shttp "github.com/nicoc/socialflow/internal/http"
-	"github.com/nicoc/socialflow/internal/service"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	shttp "github.com/Nico-Csk/socialflow/internal/http"
+	"github.com/Nico-Csk/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 func main() {

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/service"
 )
 
 // ContentHandler exposes content item endpoints.

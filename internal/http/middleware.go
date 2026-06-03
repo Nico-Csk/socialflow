@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/service"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // Context keys for storing auth information.

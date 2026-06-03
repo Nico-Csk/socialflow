@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nicoc/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/domain"
 )
 
 // CreateMembership adds a user to a workspace with the given role.

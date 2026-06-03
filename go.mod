@@ -1,4 +1,4 @@
-module github.com/nicoc/socialflow
+module github.com/Nico-Csk/socialflow
 
 go 1.26.2
 

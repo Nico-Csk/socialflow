@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // ContentService implements content item CRUD, status transitions, and

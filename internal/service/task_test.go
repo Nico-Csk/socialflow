@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // ============================================================================

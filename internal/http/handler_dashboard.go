@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"github.com/nicoc/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/service"
 )
 
 // DashboardHandler exposes the operational dashboard endpoint.

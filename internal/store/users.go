@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nicoc/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/domain"
 )
 
 // CreateUser inserts a new user and returns the fully populated domain object.

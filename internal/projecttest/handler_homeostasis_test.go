@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	httppkg "github.com/nicoc/socialflow/internal/http"
+	httppkg "github.com/Nico-Csk/socialflow/internal/http"
 )
 
 // TestContentHandlerHasNoListByMonth provides versionable automated evidence

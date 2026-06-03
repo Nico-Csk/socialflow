@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/nicoc/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/domain"
 )
 
 // spyDB implements store.DB, capturing QueryRow arguments into lastQueryRowArgs

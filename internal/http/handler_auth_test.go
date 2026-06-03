@@ -15,10 +15,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	shttp "github.com/nicoc/socialflow/internal/http"
-	"github.com/nicoc/socialflow/internal/service"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	shttp "github.com/Nico-Csk/socialflow/internal/http"
+	"github.com/Nico-Csk/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // testEnv creates a test router with real auth middleware for contract testing.

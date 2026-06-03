@@ -11,10 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	shttp "github.com/nicoc/socialflow/internal/http"
-	"github.com/nicoc/socialflow/internal/service"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	shttp "github.com/Nico-Csk/socialflow/internal/http"
+	"github.com/Nico-Csk/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // ============================================================================

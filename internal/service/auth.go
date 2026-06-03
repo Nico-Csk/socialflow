@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // AuthService handles registration, login, logout, and current-user retrieval.

@@ -271,7 +271,7 @@ func TestScopedCoverageExcludesNodeModules(t *testing.T) {
 	})
 
 	t.Run("only project packages appear", func(t *testing.T) {
-		projectPrefix := "github.com/nicoc/socialflow/"
+		projectPrefix := "github.com/Nico-Csk/socialflow/"
 		nonProjectLines := 0
 		for _, line := range lines {
 			if strings.HasPrefix(line, "mode:") {

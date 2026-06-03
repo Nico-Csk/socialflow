@@ -3,8 +3,8 @@ package http
 import (
 	"net/http"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/service"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/service"
 )
 
 // CalendarHandler exposes the monthly calendar view endpoint.

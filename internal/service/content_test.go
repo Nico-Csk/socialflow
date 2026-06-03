@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nicoc/socialflow/internal/domain"
-	"github.com/nicoc/socialflow/internal/store"
+	"github.com/Nico-Csk/socialflow/internal/domain"
+	"github.com/Nico-Csk/socialflow/internal/store"
 )
 
 // TestCalendarResult_NilItems_SerializesToArray documents the nil→null bug
