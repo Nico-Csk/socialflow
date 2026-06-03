@@ -1,0 +1,143 @@
+## Verification Report
+
+**Change**: bugfix/invite-claim-idempotent-no-role-downgrade
+**Version**: N/A
+**Mode**: Strict TDD
+
+---
+
+### Completeness
+| Metric | Value |
+|--------|-------|
+| Tasks total | 25 |
+| Tasks complete | 25 |
+| Tasks incomplete | 0 |
+
+All tasks in `sdd/bugfix/invite-claim-idempotent-no-role-downgrade/tasks` are marked complete.
+
+---
+
+### Build & Tests Execution
+
+**Build/Type Check (`go vet ./...`)**: ✅ Passed
+```text
+(no output)
+```
+
+**Tests (`go test ./...`)**: ✅ Passed (0 failed, 0 skipped)
+```text
+?    github.com/nicoc/socialflow/cmd/api [no test files]
+ok   github.com/nicoc/socialflow/internal/domain (cached)
+ok   github.com/nicoc/socialflow/internal/http (cached)
+ok   github.com/nicoc/socialflow/internal/service 0.798s
+ok   github.com/nicoc/socialflow/internal/store (cached)
+?    github.com/nicoc/socialflow/web/node_modules/flatted/golang/pkg/flatted [no test files]
+```
+
+**Coverage (`go test -coverprofile coverage.out ./...`)**: 9.2% total → ➖ No threshold configured
+
+---
+
+### TDD Compliance
+| Check | Result | Details |
+|-------|--------|---------|
+| TDD Evidence reported | ✅ | `apply-progress` includes “TDD Cycle Evidence” table |
+| All tasks have tests | ⚠️ | Behavioral tasks have explicit tests; structural/comment/command tasks are N/A |
+| RED confirmed (tests exist) | ✅ | `internal/service/workspace_test.go` exists with all listed RED tests |
+| GREEN confirmed (tests pass) | ✅ | `go test ./...` passes |
+| Triangulation adequate | ✅ | Role variants (admin/cm/viewer) plus boundary/error pairs for V2/V3/V4/N2/E4 |
+| Safety Net for modified files | ✅ | Prior and current suite execution confirms modified production path remains green |
+
+**TDD Compliance**: 5/6 checks fully passed
+
+---
+
+### Test Layer Distribution
+| Layer | Tests | Files | Tools |
+|-------|-------|-------|-------|
+| Unit | 14 test functions (with subtests) | 1 | Go testing |
+| Integration | 4 invite HTTP contract tests | 1 | `net/http/httptest` |
+| E2E | 0 | 0 | not installed |
+| **Total** | **18** | **2** | |
+
+---
+
+### Changed File Coverage
+| File | Line % | Branch % | Uncovered Lines | Rating |
+|------|--------|----------|-----------------|--------|
+| `internal/service/workspace.go` | 84.6% (`claimInviteTx`), 88.9% (`resolveInviteMembership`) | N/A (Go tool) | Not line-ranged by `go tool cover -func` output | ⚠️ Acceptable |
+| `internal/service/workspace_test.go` | N/A (test file) | N/A | N/A | ➖ Not applicable |
+| `internal/http/handler_phase4_test.go` | N/A (test file) | N/A | N/A | ➖ Not applicable |
+
+**Average changed production-file coverage**: 86.8%
+
+---
+
+### Assertion Quality
+**Assertion quality**: ✅ All assertions verify real behavior
+
+---
+
+### Quality Metrics
+**Linter**: ➖ Not available in project standards/capabilities
+**Type Checker**: ✅ `go vet ./...` passed
+
+---
+
+### Spec Compliance Matrix
+| Requirement | Scenario | Test | Result |
+|-------------|----------|------|--------|
+| Invite Validation | V1 Valid token | `internal/service/workspace_test.go > TestClaimInviteTx_JustBarelyUsable_Succeeds` (+ HTTP `TestInvite_Claim_ReturnsMembership`) | ✅ COMPLIANT |
+| Invite Validation | V2 Expired token | `internal/service/workspace_test.go > TestClaimInviteTx_ExpiredToken_ReturnsError` | ✅ COMPLIANT |
+| Invite Validation | V3 Exhausted token | `internal/service/workspace_test.go > TestClaimInviteTx_ExhaustedToken_ReturnsError` | ✅ COMPLIANT |
+| Invite Validation | V4 Not-found token | `internal/service/workspace_test.go > TestClaimInviteTx_NotFoundToken_ReturnsError` | ✅ COMPLIANT |
+| New Member Joins as Viewer | N1 New user joins | `internal/service/workspace_test.go > TestResolveInviteMembership_NewMember_JoinsAsViewer` | ✅ COMPLIANT |
+| New Member Joins as Viewer | N2 Use count incremented | `internal/service/workspace_test.go > TestClaimInviteTx_NewMember_IncrementsInviteUse` | ✅ COMPLIANT |
+| Existing Member Role Preservation | E1 Admin preserves admin | `internal/service/workspace_test.go > TestResolveInviteMembership_ExistingMember_PreservesRole/admin` | ✅ COMPLIANT |
+| Existing Member Role Preservation | E2 CM preserves CM | `internal/service/workspace_test.go > TestResolveInviteMembership_ExistingMember_PreservesRole/cm` | ✅ COMPLIANT |
+| Existing Member Role Preservation | E3 Viewer preserves viewer | `internal/service/workspace_test.go > TestResolveInviteMembership_ExistingMember_PreservesRole/viewer` | ✅ COMPLIANT |
+| Existing Member Role Preservation | E4 Use count still increments | `internal/service/workspace_test.go > TestClaimInviteTx_ExistingMember_IncrementsInviteUse` | ✅ COMPLIANT |
+| Existing Member Role Preservation | E5 No double-insert | `internal/service/workspace_test.go > TestResolveInviteMembership_ExistingMember_PreservesRole` + `TestClaimInviteTx_ExistingMember_IncrementsInviteUse` | ✅ COMPLIANT |
+| Invariant — No Role Downgrade | No admin/cm downgrade | `internal/service/workspace_test.go > TestResolveInviteMembership_ExistingMember_PreservesRole` + `TestClaimInviteTx_ExistingMember_IncrementsInviteUse` | ✅ COMPLIANT |
+
+**Compliance summary**: 12/12 scenarios compliant
+
+---
+
+### Correctness (Static — Structural Evidence)
+| Requirement | Status | Notes |
+|------------|--------|-------|
+| Invite Validation | ✅ Implemented | `claimInviteTx` handles not-found and unusable branches (`internal/service/workspace.go:231-240`). |
+| New Member Joins as Viewer | ✅ Implemented | `resolveInviteMembership` creates `RoleViewer` only when membership is missing (`workspace.go:263-275`). |
+| Existing Member Role Preservation | ✅ Implemented | Existing membership short-circuits without insert (`workspace.go:267-269`). |
+| Invariant — No Role Downgrade | ✅ Implemented | No code path mutates existing admin/cm/viewer down to viewer during claim flow. |
+
+---
+
+### Coherence (Design)
+| Decision | Followed? | Notes |
+|----------|-----------|-------|
+| Service-layer pre-check instead of SQL contract change | ✅ Yes | Implemented via `resolveInviteMembership` |
+| Preserve existing member role | ✅ Yes | Existing-member path returns as-is |
+| Increment invite on every successful claim | ✅ Yes | `IncrementInviteUse` executes after membership resolution in both paths |
+| Focused service-layer seam for business-rule tests | ✅ Yes | `claimInviteTx` extracted and tested with `store.DB` spy |
+
+---
+
+### Issues Found
+
+**CRITICAL** (must fix before archive):
+None.
+
+**WARNING** (should fix):
+None.
+
+**SUGGESTION** (nice to have):
+1. Consider excluding `web/node_modules/**` from `go test ./...` package walk to keep Go CI noise lower.
+
+---
+
+### Verdict
+**PASS**
+
+V2/V4 prior partials are now fully compliant; all spec scenarios have passing runtime evidence and required commands pass cleanly.

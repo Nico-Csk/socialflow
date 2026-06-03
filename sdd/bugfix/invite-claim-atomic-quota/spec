@@ -1,0 +1,100 @@
+# Delta for Invite Claim Quota Enforcement
+
+## Purpose
+
+Enforce `use_count <= max_uses` at write time via atomic SQL guard, closing a TOCTOU race where concurrent claims on a stale `IsUsable()` snapshot could exceed the invite cap.
+
+## ADDED Requirements
+
+### Requirement: Atomic Quota Guard
+
+The store layer MUST enforce `use_count < max_uses` atomically within `IncrementInviteUse`. The guard is the source of truth; the service-layer `IsUsable()` pre-check is a fast-path optimization only.
+
+#### Scenario: Atomic increment succeeds when quota remains at write time
+
+- GIVEN an invite with `use_count=4, max_uses=5` and a concurrent claim in-flight
+- WHEN `IncrementInviteUse` executes `UPDATE ... WHERE id=$1 AND use_count < max_uses`
+- THEN `RowsAffected()` is 1 and use_count advances to 5
+- AND the claim proceeds through `resolveInviteMembership`
+
+#### Scenario: Atomic increment fails when quota exhausted at write time
+
+- GIVEN an invite with `use_count=4, max_uses=5` and two concurrent claims where one already consumed the last slot
+- WHEN `IncrementInviteUse` executes the guarded UPDATE
+- THEN `RowsAffected()` is 0
+- AND the store returns `ErrInviteExhausted` (distinct from `pgx.ErrNoRows`)
+
+#### Scenario: Error contract identical to pre-check rejection
+
+- GIVEN `IncrementInviteUse` returned `ErrInviteExhausted`
+- WHEN `claimInviteTx` receives the error
+- THEN the service returns `"invite is expired or exhausted"` — identical to the `IsUsable()` rejection path
+- AND the caller cannot distinguish pre-check from atomic-guard rejection
+
+### Requirement: use_count Never Exceeds max_uses
+
+The database MUST be the sole gatekeeper for the `use_count <= max_uses` invariant. No application-level check alone is sufficient.
+
+#### Scenario: Five concurrent claims on a 5-use invite
+
+- GIVEN an invite with `max_uses=5` and 10 concurrent `ClaimInvite` requests, all observing `use_count=0` at read time
+- WHEN all requests execute the guarded UPDATE
+- THEN exactly 5 increments succeed and 5 fail with `RowsAffected()=0`
+- AND `use_count` in the database is exactly 5, never 6+
+
+## MODIFIED Requirements
+
+### Requirement: IncrementInviteUse Error Semantics
+
+`IncrementInviteUse` SHALL return `ErrInviteExhausted` when the atomic guard rejects the increment, instead of `pgx.ErrNoRows`. Other DB errors propagate unchanged.
+
+(Previously: `IncrementInviteUse` returned `pgx.ErrNoRows` on zero rows affected, making invite-not-found and quota-exhausted indistinguishable.)
+
+#### Scenario: Exhausted at write time is distinguishable from invite not found
+
+- GIVEN `IncrementInviteUse` fails because `use_count >= max_uses`
+- WHEN the store checks `RowsAffected() == 0`
+- THEN the returned error is `ErrInviteExhausted`, not `pgx.ErrNoRows`
+
+#### Scenario: Generic DB errors propagate unchanged
+
+- GIVEN a connection failure during `IncrementInviteUse`
+- WHEN `db.Exec` returns a DB error
+- THEN the error propagates to the caller as-is (no sentinel substitution)
+
+### Requirement: claimInviteTx Error Handling
+
+`claimInviteTx` SHALL detect `store.ErrInviteExhausted` from `IncrementInviteUse` and return `"invite is expired or exhausted"`. All other increment errors SHALL wrap as `"increment invite use: %w"`.
+
+(Previously: `claimInviteTx` wrapped all `IncrementInviteUse` errors uniformly as `"increment invite use: %w"`.)
+
+#### Scenario: ErrInviteExhausted produces user-facing message
+
+- GIVEN `IncrementInviteUse` returned `store.ErrInviteExhausted`
+- WHEN `claimInviteTx` checks the error with `errors.Is`
+- THEN the returned error message is `"invite is expired or exhausted"`
+
+#### Scenario: Non-sentinel increment errors wrap normally
+
+- GIVEN `IncrementInviteUse` returned a DB error (e.g. connection lost)
+- WHEN `claimInviteTx` wraps the error
+- THEN the returned error contains `"increment invite use"` prefix
+
+## Preserved Behavior (non-regression)
+
+### Requirement: Role Preservation
+
+`resolveInviteMembership` MUST return the existing role for members already in the workspace. New members MUST receive `RoleViewer`. This behavior SHALL NOT change.
+
+#### Scenario: Admin claims invite, stays admin
+
+- GIVEN user is already `RoleAdmin` in the workspace
+- WHEN they claim an invite to the same workspace
+- THEN the returned membership has `RoleAdmin`
+- AND use_count increments normally
+
+#### Scenario: New member becomes viewer
+
+- GIVEN user has no membership in the workspace
+- WHEN they claim a valid invite
+- THEN the returned membership has `RoleViewer`

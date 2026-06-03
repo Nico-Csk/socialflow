@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-socialflow-50: #f0f4ff;
+  --color-socialflow-100: #dbe4ff;
+  --color-socialflow-200: #bac8ff;
+  --color-socialflow-300: #91a7ff;
+  --color-socialflow-400: #748ffc;
+  --color-socialflow-500: #5c7cfa;
+  --color-socialflow-600: #4c6ef5;
+  --color-socialflow-700: #4263eb;
+  --color-socialflow-800: #3b5bdb;
+  --color-socialflow-900: #364fc7;
+}

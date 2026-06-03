@@ -1,0 +1,44 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+web/dist/
+
+# Coverage / test artifacts
+coverage/
+coverage-*/
+*.out
+web/coverage/
+
+# Agent local artifacts
+.atl/
+
+# Frontend dependencies (defense-in-depth against root-level installs)
+node_modules/

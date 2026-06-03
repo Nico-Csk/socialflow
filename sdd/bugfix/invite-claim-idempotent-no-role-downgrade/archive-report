@@ -1,0 +1,91 @@
+## Archive Report
+
+**Change**: bugfix/invite-claim-idempotent-no-role-downgrade
+**Change type**: Bugfix — Security
+**Archived at**: 2026-05-31
+**Mode**: Engram (no filesystem archive move)
+
+## Verdict
+**PASS** — all 12/12 spec scenarios compliant, all 25/25 tasks complete, no CRITICAL or WARNING issues.
+
+## Artifact Traceability (Engram Observation IDs)
+
+| Artifact | Observation ID | Status |
+|----------|---------------|--------|
+| explore | #1226 | Final |
+| proposal | #1227 | Final |
+| spec | #1228 | Final |
+| design | #1229 (Engram) + filesystem at `sdd/bugfix/invite-claim-idempotent-no-role-downgrade/design` | Final |
+| tasks | #1231 | Final — 25/25 complete |
+| apply-progress | #1232 | Final — all phases delivered |
+| verify-report | #1233 (Engram) + filesystem at `sdd/bugfix/invite-claim-idempotent-no-role-downgrade/verify-report` | Final — PASS |
+| archive-report | #1237 (Engram) + this file | Final |
+
+## Changed Files
+
+| File | Action | Description |
+|------|--------|-------------|
+| `internal/service/workspace.go` | Modified | Added `resolveInviteMembership` helper with `GetMembership` pre-check; extracted `claimInviteTx` for testability; `IncrementInviteUse` runs after membership resolution in both new-member and existing-member paths. No role ever downgraded. |
+| `internal/service/workspace_test.go` | Created | 14 test functions (with subtests = 22 total cases) covering: role preservation (admin/cm/viewer), new member joins as viewer, use-count increments in both paths, error propagation, V2 expired, V3 exhausted, V4 not-found, plus triangulation boundaries. |
+| `internal/http/handler_phase4_test.go` | Modified | Added doc comment noting downgrade regression is enforced at service layer (HTTP mock cannot prove it). |
+
+## Test Evidence
+
+```
+$ go vet ./...
+(no output) ✅
+
+$ go test ./...
+?    github.com/nicoc/socialflow/cmd/api [no test files]
+ok   github.com/nicoc/socialflow/internal/domain (cached)
+ok   github.com/nicoc/socialflow/internal/http (cached)
+ok   github.com/nicoc/socialflow/internal/service 0.798s
+ok   github.com/nicoc/socialflow/internal/store (cached)
+✅ All tests pass (0 failed, 0 skipped)
+```
+
+| Layer | Tests | Count |
+|-------|-------|-------|
+| Unit (service) | 14 test functions (22 subtests) | 14 |
+| Integration (HTTP) | 4 invite contract tests | 4 |
+| **Total** | | **18** |
+
+## Spec Compliance
+
+| Requirement | Scenarios | Result |
+|-------------|-----------|--------|
+| Invite Validation | V1 (valid), V2 (expired), V3 (exhausted), V4 (not-found) | ✅ 4/4 |
+| New Member Joins as Viewer | N1 (viewer join), N2 (use increment) | ✅ 2/2 |
+| Existing Member Role Preservation | E1 (admin), E2 (cm), E3 (viewer), E4 (use increment), E5 (no double-insert) | ✅ 5/5 |
+| Invariant — No Role Downgrade | Absolute prohibition | ✅ 1/1 |
+| **Total** | | **✅ 12/12** |
+
+## Design Coherence
+
+All 4 architecture decisions followed exactly:
+1. ✅ **Service-layer pre-check** — implemented via `resolveInviteMembership`
+2. ✅ **Preserve existing member role** — existing membership returned as-is
+3. ✅ **Increment invite on every successful claim** — `IncrementInviteUse` executes in both paths
+4. ✅ **Focused service-layer seam** — `claimInviteTx` extracted and tested with `store.DB` spy
+
+## SDD Cycle Summary
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Explore | ✅ Complete | Root cause identified (ON CONFLICT upsert overwrites role); 3 approaches evaluated; service-layer guard recommended |
+| Proposal | ✅ Complete | Intent, scope, approach, risks documented — service-layer pre-check |
+| Spec | ✅ Complete | 4 requirements, 12 scenarios across invite validation, new-member join, existing-member preservation, no-downgrade invariant |
+| Design | ✅ Complete | 4 architecture decisions, data flow diagram, file changes, interfaces, testing strategy |
+| Tasks | ✅ Complete | 25 tasks across 5 phases (RED → GREEN → HTTP/Verify → Post-verify gaps → V2/V4 gaps) |
+| Apply | ✅ Complete | Strict TDD: every RED test written first, GREEN implemented, triangulated where appropriate |
+| Verify | ✅ Complete | Full suite pass, 12/12 spec compliance, 84.6%/88.9% production file coverage, PASS verdict |
+| **Archive** | **✅ Complete** | **This report — Engram observation IDs recorded** |
+
+## Follow-Up
+
+- Consider excluding `web/node_modules/**` from `go test ./...` package walk for faster CI.
+- JWT re-signing on invite claim remains deferred; per-request `RevalidateWorkspaceMembership` middleware handles stale roles.
+
+## Sign-Off
+
+SDD cycle fully complete. Change archived.

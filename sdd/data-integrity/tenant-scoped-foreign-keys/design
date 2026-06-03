@@ -1,0 +1,99 @@
+# Design: Tenant-Scoped Foreign Keys
+
+## Technical Approach
+
+Enforce tenant ownership at the persistence boundary with atomic SQL `EXISTS` guards inside `CreateContentItem`, `UpdateContentItem`, `CreateTask`, and `UpdateTask`. Guard failures will translate from `pgx.ErrNoRows` into store sentinels, then into typed service validation errors, and finally into HTTP `400` responses with field details.
+
+## Architecture Decisions
+
+| Decision | Options | Choice | Rationale |
+|---|---|---|---|
+| Integrity enforcement layer | Service pre-flight; SQL guard; both | SQL guard in store | Atomic, race-free, matches `IncrementInviteUse` guarded-write precedent and project standard: persistence invariants live close to SQL. |
+| Assignee validation | Global `users` FK only; membership pre-flight; SQL membership guard | SQL guard against `memberships` | `users` is global, so workspace membership is the real tenant boundary. |
+| Error contract | Raw strings; store sentinels only; typed service error + handler details | Typed service validation error | Keeps store reusable while giving handlers stable field-level `400` responses. |
+| Schema hardening | Composite FKs now; defer migration | Defer composite FKs | Higher migration cost, still does not solve `assignee_id`, and current indexes already make guarded lookups cheap. |
+
+## Data Flow
+
+`POST/PUT content-items or tasks`
+→ handler decodes JSON
+→ service validates required fields
+→ store executes guarded `INSERT/UPDATE`
+→ guard passes: row returned
+→ guard fails: `pgx.ErrNoRows`
+→ store maps to sentinel (`ErrClientNotInWorkspace`, `ErrContentItemNotInWorkspace`, `ErrAssigneeNotInWorkspace`)
+→ service maps sentinel to `InvalidReferenceError{Field, Message}`
+→ handler writes `400 { error: { code, message, details.field } }`
+
+Guard shape:
+
+```sql
+WITH guard AS (
+  SELECT 1
+  WHERE ($client_id IS NULL OR EXISTS (...clients...workspace_id = $ws))
+    AND ($content_item_id IS NULL OR EXISTS (...content_items...workspace_id = $ws))
+    AND ($assignee_id IS NULL OR EXISTS (...memberships...workspace_id = $ws))
+)
+UPDATE ...
+FROM guard
+WHERE id = $id AND workspace_id = $ws
+RETURNING ...
+```
+
+Update methods keep the existing `nil,nil` not-found contract by doing a workspace-scoped existence check only when the guarded update returns no rows and no sentinel matched.
+
+## File Changes
+
+| File | Action | Description |
+|---|---|---|
+| `internal/store/store.go` | Modify | Add sentinel errors for guarded tenant-reference failures. |
+| `internal/store/content_items.go` | Modify | Wrap create/update with `client_id` workspace `EXISTS` guard; distinguish not-found vs invalid client on update. |
+| `internal/store/tasks.go` | Modify | Add guarded checks for `client_id`, `content_item_id`, and `assignee_id`; preserve current not-found semantics for updates. |
+| `internal/service/content.go` | Modify | Map store sentinels to typed validation errors for `client_id`. |
+| `internal/service/task.go` | Modify | Map store sentinels to typed validation errors for `client_id`, `content_item_id`, and `assignee_id`. |
+| `internal/http/handler_content.go` | Modify | Serialize typed validation errors as `400` with `details.field`. |
+| `internal/http/handler_task.go` | Modify | Same mapping for task create/update. |
+| `internal/store/content_items_test.go` | Create | Spy-based SQL guard tests for create/update reject + valid path triangulation. |
+| `internal/store/tasks_test.go` | Create | Spy-based SQL guard tests covering each guarded reference and update not-found split. |
+| `internal/service/content_test.go` | Modify | Assert sentinel→validation mapping for `client_id`. |
+| `internal/service/task_test.go` | Create | Assert sentinel→validation mapping for all three task references. |
+| `internal/http/handler_phase4_test.go` | Modify | Assert `400` envelopes include field details for invalid tenant-scoped references. |
+
+## Interfaces / Contracts
+
+```go
+var (
+    ErrClientNotInWorkspace      = errors.New("client not in workspace")
+    ErrContentItemNotInWorkspace = errors.New("content item not in workspace")
+    ErrAssigneeNotInWorkspace    = errors.New("assignee not in workspace")
+)
+
+type InvalidReferenceError struct {
+    Field   string `json:"field"`
+    Message string `json:"message"`
+}
+```
+
+Handler response detail shape:
+
+```json
+{ "error": { "code": "bad_request", "message": "client_id does not belong to this workspace", "details": { "field": "client_id" } } }
+```
+
+## Testing Strategy
+
+| Layer | What to Test | Approach |
+|---|---|---|
+| Store | Guarded SQL rejects invalid tenant references | Spy DB returns `pgx.ErrNoRows`; assert sentinel mapping and SQL contains `EXISTS` guards. |
+| Store | Valid references still write | Triangulation tests return successful rows for same methods. |
+| Store | Update not-found remains distinct | Simulate failed guarded update + missing row lookup → `nil, nil`, not sentinel. |
+| Service | Sentinel-to-field mapping | Table-driven tests over content/task services with store-generated sentinel errors. |
+| HTTP | Error envelope contract | Route tests assert `400`, message, and `details.field` for each invalid reference class. |
+
+## Migration / Rollout
+
+No migration required.
+
+## Open Questions
+
+- [ ] None.

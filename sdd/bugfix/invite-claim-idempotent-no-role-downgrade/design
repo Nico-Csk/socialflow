@@ -1,0 +1,74 @@
+# Design: ClaimInvite Idempotent — No Role Downgrade
+
+## Technical Approach
+
+Keep the fix in the service layer. `WorkspaceService.ClaimInvite` will load the invite inside the existing transaction, check whether the user already has a membership in that workspace, and only call `CreateMembership(..., RoleViewer)` for truly new members. Existing members return their current membership unchanged. Invite use count still increments in both paths so a successful claim always consumes one use.
+
+## Architecture Decisions
+
+| Decision | Options | Choice | Rationale |
+|---|---|---|---|
+| Guard location | Service-layer pre-check; SQL upsert change | Service-layer pre-check | Preserves store contract, keeps business rule visible, matches project standard: business rules stay in service unless persistence contract must change globally. |
+| Existing member role | Reapply viewer; preserve current role | Preserve current role | Avoids silent admin/CM downgrade and keeps `ClaimInvite` idempotent for members already in the workspace. |
+| Invite consumption | Increment only for new members; increment for every successful claim | Increment for every successful claim | Proposal scope already treats an authenticated successful claim as legitimate usage; skipping increment would allow replay without consuming capacity. |
+| Test seam | Only HTTP mock test; SQL test; service helper test | Add focused service-layer test seam | Current phase4 invite route is mocked and cannot prove the regression. A focused service helper test verifies the real rule with low cost. |
+
+## Data Flow
+
+`POST /api/invites/{token}/claim`
+→ `WorkspaceHandler.ClaimInvite`
+→ `WorkspaceService.ClaimInvite`
+→ begin tx
+→ `GetInviteByToken`
+→ validate usable
+→ `GetMembership(workspaceID, userID)`
+   - membership exists → reuse existing role
+   - membership missing → `CreateMembership(..., viewer)`
+→ `IncrementInviteUse`
+→ commit tx
+→ return membership
+
+## File Changes
+
+| File | Action | Description |
+|---|---|---|
+| `internal/service/workspace.go` | Modify | Add membership pre-check in `ClaimInvite`; keep invite use increment after membership resolution; wrap errors with context. |
+| `internal/service/workspace_test.go` | Create | Add focused table-driven regression tests for `ClaimInvite` membership resolution using a `store.DB` spy. |
+| `internal/http/handler_phase4_test.go` | Modify | Keep current happy-path invite contract coverage, but document that downgrade regression is enforced at service layer, not the mocked route. |
+| `sdd/bugfix/invite-claim-idempotent-no-role-downgrade/design` | Create | Persist this technical design artifact. |
+
+## Interfaces / Contracts
+
+No external API or SQL contract changes.
+
+Planned internal helper to improve testability while preserving public behavior:
+
+```go
+func (s *WorkspaceService) resolveInviteMembership(
+    ctx context.Context,
+    db store.DB,
+    workspaceID, userID string,
+) (*domain.Membership, error)
+```
+
+Behavior:
+- return existing membership as-is when found
+- otherwise create a new viewer membership
+- never downgrade an existing role
+
+## Testing Strategy
+
+| Layer | What to Test | Approach |
+|---|---|---|
+| Unit | Existing member keeps role (`admin`, `cm`, `viewer`) | Table-driven service tests around the helper using a spy `store.DB`; assert returned role and that no insert SQL is issued for existing members. |
+| Unit | New member still joins as viewer | Same spy-based test; assert membership insert occurs once with `viewer`. |
+| Unit | Successful existing-member claim still consumes invite use | Assert `IncrementInviteUse` path executes for both existing and new-member cases. |
+| Integration | HTTP invite claim still returns `201` + membership envelope | Keep/update `TestInvite_Claim_ReturnsMembership`; this protects handler contract, not the downgrade rule. |
+
+## Migration / Rollout
+
+No migration required.
+
+## Open Questions
+
+- [ ] None.
